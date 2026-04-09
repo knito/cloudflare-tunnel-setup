@@ -48,28 +48,29 @@ tunnel-create: ## Create the tunnel
 
 .PHONY: tunnel-route
 tunnel-route: ## Configure ingress rules via config file (requires user input)
-	@echo "=== Cloudflare Tunnel - Configure Ingress Rules ==="
-	@read -p "Enter the tunnel name or UUID: " TUNNEL_TO_ROUTE; \
+	@echo "=== Cloudflare Tunnel - Configure Ingress Rules ==="; \
+	read -p "Enter the tunnel name or UUID: " TUNNEL_TO_ROUTE; \
 	read -p "Enter domain name (e.g., www.example.com): " DOMAIN; \
 	read -p "Enter the target host for the tunnel (e.g., 192.168.1.10): " K8S_HOST_INPUT; \
 	read -p "Enter the target port for the tunnel (e.g., 8080): " NODE_PORT_INPUT; \
-	TUNNEL_INFO=$$(cloudflared tunnel info "${TUNNEL_TO_ROUTE}" 2>&1); \
-	if echo "${TUNNEL_INFO}" | grep -q "error\|not found" || [ -z "${TUNNEL_INFO}" ]; then \
-		echo "ERROR: Could not find tunnel '${TUNNEL_TO_ROUTE}'. Run 'make tunnel-create' first or provide a valid tunnel name/UUID."; \
+	echo "Checking tunnel info for: $${TUNNEL_TO_ROUTE}"; \
+	TUNNEL_INFO=$$(cloudflared tunnel info "$${TUNNEL_TO_ROUTE}" 2>&1); \
+	if echo "$${TUNNEL_INFO}" | grep -q "error\|not found" || [ -z "$${TUNNEL_INFO}" ]; then \
+		echo "ERROR: Could not find tunnel '$${TUNNEL_TO_ROUTE}'. Run 'make tunnel-create' first or provide a valid tunnel name/UUID."; \
 		exit 1; \
 	fi; \
-	TUNNEL_ID=$$(echo "${TUNNEL_INFO}" | grep -oP '(?<=ID: )[a-f0-9-]+' | head -1); \
-	if [ -z "${TUNNEL_ID}" ]; then \
+	TUNNEL_ID=$$(echo "$${TUNNEL_INFO}" | grep -oP '(?<=ID: )[a-f0-9-]+' | head -1); \
+	if [ -z "$${TUNNEL_ID}" ]; then \
 		echo "WARNING: Could not extract tunnel ID, using provided name/UUID as fallback."; \
-		TUNNEL_ID="${TUNNEL_TO_ROUTE}"; \
+		TUNNEL_ID="$${TUNNEL_TO_ROUTE}"; \
 	fi; \
 	mkdir -p ~/.cloudflared && \
 	{ \
-		echo "tunnel: ${TUNNEL_ID}"; \
-		echo "credentials-file: ~/.cloudflared/${TUNNEL_ID}.json"; \
+		echo "tunnel: $${TUNNEL_ID}"; \
+		echo "credentials-file: ~/.cloudflared/$${TUNNEL_ID}.json"; \
 		echo "ingress:"; \
-		echo "  - hostname: ${DOMAIN}"; \
-		echo "    service: http://${K8S_HOST_INPUT}:${NODE_PORT_INPUT}"; \
+		echo "  - hostname: $${DOMAIN}"; \
+		echo "    service: http://$${K8S_HOST_INPUT}:$${NODE_PORT_INPUT}"; \
 		echo "  - service: http_status:503"; \
 	} > ~/.cloudflared/config.yml && \
 	echo "✓ Ingress rules configured in ~/.cloudflared/config.yml" && \
@@ -77,8 +78,8 @@ tunnel-route: ## Configure ingress rules via config file (requires user input)
 	echo "Next steps:" && \
 	echo "1. Run 'make tunnel-run' to start the tunnel" && \
 	echo "2. Create a CNAME record in Cloudflare DNS:" && \
-	echo "   Name: ${DOMAIN}" && \
-	echo "   Target: ${TUNNEL_ID}.cfargotunnel.com" && \
+	echo "   Name: $${DOMAIN}" && \
+	echo "   Target: $${TUNNEL_ID}.cfargotunnel.com" && \
 	echo ""
 
 .PHONY: tunnel-run
