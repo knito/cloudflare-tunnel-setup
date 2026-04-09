@@ -1,9 +1,5 @@
-# ============================================================
-# Makefile for simple-hello-world-ts
-# ============================================================
-
-K8S_HOST    := 192.168.1.10
-TUNNEL_NAME := "tunnel-name"
+# K8S_HOST    := 192.168.1.10
+# TUNNEL_NAME := "tunnel-name"
 
 .DEFAULT_GOAL := help
 
@@ -14,7 +10,7 @@ TUNNEL_NAME := "tunnel-name"
 .PHONY: tunnel-install
 tunnel-install: ## Install cloudflared (Cloudflare Tunnel client)
 	@echo "Installing cloudflared for $(shell uname -s)..."
-	@if [ "$$(uname -s)" = "Darwin" ]; then \
+	@if [ "$(uname -s)" = "Darwin" ]; then \
 		brew install cloudflare/cloudflare/cloudflared; \
 	else \
 		echo "Downloading cloudflared for ARM64..."; \
@@ -32,14 +28,14 @@ tunnel-list: ## List all Cloudflare Tunnels
 .PHONY: tunnel-info
 tunnel-info: ## Show detailed info for a specific tunnel
 	@read -p "Enter tunnel name or UUID: " TUNNEL; \
-	cloudflared tunnel info $$TUNNEL
+	cloudflared tunnel info ${TUNNEL}
 
 .PHONY: tunnel-dns
 tunnel-dns: ## Create DNS route for a tunnel
 	@read -p "Enter tunnel name or UUID: " TUNNEL; \
 	read -p "Enter subdomain (e.g., www): " SUBDOMAIN; \
-	echo "Creating DNS route: $$TUNNEL -> $$SUBDOMAIN"; \
-	cloudflared tunnel route dns $$TUNNEL $$SUBDOMAIN
+	echo "Creating DNS route: ${TUNNEL} -> ${SUBDOMAIN}"; \
+	cloudflared tunnel route dns ${TUNNEL} ${SUBDOMAIN}
 
 .PHONY: tunnel-login
 tunnel-login: ## Authenticate with Cloudflare
@@ -47,29 +43,33 @@ tunnel-login: ## Authenticate with Cloudflare
 
 .PHONY: tunnel-create
 tunnel-create: ## Create the tunnel
-	cloudflared tunnel create $(TUNNEL_NAME)
+	@read -p "Enter the desired tunnel name: " NEW_TUNNEL_NAME; \
+	cloudflared tunnel create ${NEW_TUNNEL_NAME}
 
 .PHONY: tunnel-route
 tunnel-route: ## Configure ingress rules via config file (requires user input)
-	@echo "=== Cloudflare Tunnel - Configure Ingress Rules ===" && \
+	@echo "=== Cloudflare Tunnel - Configure Ingress Rules ==="
+	@read -p "Enter the tunnel name or UUID: " TUNNEL_TO_ROUTE; \
 	read -p "Enter domain name (e.g., www.example.com): " DOMAIN; \
-	TUNNEL_INFO=$$(cloudflared tunnel info $(TUNNEL_NAME) 2>&1); \
-	if echo "$$TUNNEL_INFO" | grep -q "error\|not found" || [ -z "$$TUNNEL_INFO" ]; then \
-		echo "ERROR: Could not find tunnel '$(TUNNEL_NAME)'. Run 'make tunnel-create' first."; \
+	read -p "Enter the target host for the tunnel (e.g., 192.168.1.10): " K8S_HOST_INPUT; \
+	read -p "Enter the target port for the tunnel (e.g., 8080): " NODE_PORT_INPUT; \
+	TUNNEL_INFO=$$(cloudflared tunnel info "${TUNNEL_TO_ROUTE}" 2>&1); \
+	if echo "${TUNNEL_INFO}" | grep -q "error\|not found" || [ -z "${TUNNEL_INFO}" ]; then \
+		echo "ERROR: Could not find tunnel '${TUNNEL_TO_ROUTE}'. Run 'make tunnel-create' first or provide a valid tunnel name/UUID."; \
 		exit 1; \
 	fi; \
-	TUNNEL_ID=$$(echo "$$TUNNEL_INFO" | grep -oP '(?<=ID: )[a-f0-9-]+' | head -1); \
-	if [ -z "$$TUNNEL_ID" ]; then \
-		echo "WARNING: Could not extract tunnel ID, using tunnel name instead."; \
-		TUNNEL_ID=$(TUNNEL_NAME); \
+	TUNNEL_ID=$$(echo "${TUNNEL_INFO}" | grep -oP '(?<=ID: )[a-f0-9-]+' | head -1); \
+	if [ -z "${TUNNEL_ID}" ]; then \
+		echo "WARNING: Could not extract tunnel ID, using provided name/UUID as fallback."; \
+		TUNNEL_ID="${TUNNEL_TO_ROUTE}"; \
 	fi; \
 	mkdir -p ~/.cloudflared && \
 	{ \
-		echo "tunnel: $$TUNNEL_ID"; \
-		echo "credentials-file: ~/.cloudflared/$$TUNNEL_ID.json"; \
+		echo "tunnel: ${TUNNEL_ID}"; \
+		echo "credentials-file: ~/.cloudflared/${TUNNEL_ID}.json"; \
 		echo "ingress:"; \
-		echo "  - hostname: $$DOMAIN"; \
-		echo "    service: http://$(K8S_HOST):$(NODE_PORT)"; \
+		echo "  - hostname: ${DOMAIN}"; \
+		echo "    service: http://${K8S_HOST_INPUT}:${NODE_PORT_INPUT}"; \
 		echo "  - service: http_status:503"; \
 	} > ~/.cloudflared/config.yml && \
 	echo "✓ Ingress rules configured in ~/.cloudflared/config.yml" && \
@@ -77,16 +77,16 @@ tunnel-route: ## Configure ingress rules via config file (requires user input)
 	echo "Next steps:" && \
 	echo "1. Run 'make tunnel-run' to start the tunnel" && \
 	echo "2. Create a CNAME record in Cloudflare DNS:" && \
-	echo "   Name: $$DOMAIN" && \
-	echo "   Target: $$TUNNEL_ID.cfargotunnel.com" && \
+	echo "   Name: ${DOMAIN}" && \
+	echo "   Target: ${TUNNEL_ID}.cfargotunnel.com" && \
 	echo ""
 
 .PHONY: tunnel-run
 tunnel-run: ## Run the tunnel (requires 'make tunnel-route' to configure ingress first)
-	@echo "Starting Cloudflare Tunnel for simple-hello-world..."
-	@echo "Proxying to http://$(K8S_HOST):$(NODE_PORT)"
-	@echo "Note: Run 'make tunnel-route' first if you haven't configured the ingress."
-	cloudflared tunnel run $(TUNNEL_NAME)
+	@read -p "Enter the tunnel name or UUID to run: " TUNNEL_TO_RUN; \
+	echo "Starting Cloudflare Tunnel '${TUNNEL_TO_RUN}'..."
+	@echo "Note: Ensure 'make tunnel-route' has been run to configure ingress."
+	cloudflared tunnel run ${TUNNEL_TO_RUN}
 
 .PHONY: tunnel-service-install
 tunnel-service-install: ## Install cloudflared as systemd service (auto-start)
@@ -120,7 +120,8 @@ help: ## List all available targets with descriptions
 	@printf "\nUsage: make <target>\n\n"
 	@printf "%-20s %s\n" "Target" "Description"
 	@printf "%-20s %s\n" "------" "-----------"
-	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) \
+	@grep -E '^[a-zA-Z_-]+:.*##' ${MAKEFILE_LIST} \
 		| sort \
-		| awk 'BEGIN {FS = ":.*##"}; {printf "  %-18s %s\n", $$1, $$2}'
+		| awk 'BEGIN {FS = ":.*##"}; {printf "  %-18s %s\n", ${1}, ${2}}'
 	@printf "\n"
+
