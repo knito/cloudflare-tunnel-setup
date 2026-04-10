@@ -59,11 +59,14 @@ tunnel-route: ## Configure ingress rules via config file (requires user input)
 	NODE_PORT_INPUT=$${NODE_PORT_INPUT:-32400}; \
 	echo "Checking tunnel info for: $${TUNNEL_TO_ROUTE}"; \
 	TUNNEL_INFO=$$(cloudflared tunnel info "$${TUNNEL_TO_ROUTE}" 2>&1); \
+	echo "Tunnel info output:"; \
+	echo "$${TUNNEL_INFO}"; \
 	if echo "$${TUNNEL_INFO}" | grep -q "error\|not found" || [ -z "$${TUNNEL_INFO}" ]; then \
 		echo "ERROR: Could not find tunnel '$${TUNNEL_TO_ROUTE}'. Run 'make tunnel-create' first or provide a valid tunnel name/UUID."; \
 		exit 1; \
 	fi; \
-	TUNNEL_ID=$$(echo "$${TUNNEL_INFO}" | grep -oP '(?<=ID: )[a-f0-9-]+' | head -1); \
+	TUNNEL_ID=$$(echo "$${TUNNEL_INFO}" | grep 'ID:' | sed 's/.*ID: *//g' | sed 's/ .*//g' | head -1); \
+	echo "Extracted Tunnel ID: $${TUNNEL_ID}"; \
 	if [ -z "$${TUNNEL_ID}" ]; then \
 		echo "WARNING: Could not extract tunnel ID, using provided name/UUID as fallback."; \
 		TUNNEL_ID="$${TUNNEL_TO_ROUTE}"; \
