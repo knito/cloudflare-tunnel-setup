@@ -130,6 +130,6 @@ help: ## List all available targets with descriptions
 	@printf "%-20s %s\n" "------" "-----------"
 	@grep -E '^[a-zA-Z_-]+:.*##' ${MAKEFILE_LIST} \
 		| sort \
-		| awk 'BEGIN {FS = ":.*##"}; {printf "  %-18s %s\n", ${1}, ${2}}'
+		| awk 'BEGIN {FS = ":.*##"}; {printf "  %-18s %s\n", $$1, $$2}'
 	@printf "\n"
 
