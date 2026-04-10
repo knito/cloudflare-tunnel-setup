@@ -6,8 +6,8 @@ This repository is a simple reference for setting up and managing a Cloudflare T
 
 ## Key Configuration
 
-- **K8S_HOST**: `192.168.1.10` (target server for tunnel)
-- **TUNNEL_NAME**: `"tunnel-name"` (configurable in Makefile)
+- Configuration is fully interactive via the `make` commands.
+- **Default Target Host**: `192.168.1.10` (used as default during `make tunnel-route` if not specified).
 
 ## Critical Workflow
 

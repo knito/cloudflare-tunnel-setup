@@ -291,12 +291,6 @@ Todos los comandos ahora solicitan los valores necesarios interactivamente:
 - Host por defecto: `192.168.1.10`
 - Puerto por defecto para Plex: `32400`
 
-**Variables comentadas en Makefile (no se usan activamente):**
-```makefile
-# K8S_HOST    := 192.168.1.10      # Comentado - ahora interactivo
-# TUNNEL_NAME := "tunnel-name"     # Comentado - ahora interactivo
-```
-
 ## ⚠️ Solución de Problemas Comunes
 
 ### Error al crear DNS en un dominio diferente (ej: sub.midominio.cl anidado en .com)
