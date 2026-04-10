@@ -4,7 +4,16 @@ Una guía completa para configurar y gestionar un túnel de Cloudflare usando `c
 
 ## 🎯 Objetivo
 
-Este túnel conecta un servidor local (192.168.1.10) con el internet público a través de Cloudflare, permitiendo acceso seguro sin abrir puertos en el router o manejar certificados SSL.
+Este túnel conecta múltiples servicios locales con el internet público a través de Cloudflare, permitiendo acceso seguro sin abrir puertos en el router o manejar certificados SSL.
+
+## ✨ Características Principales
+
+- 🚀 **Configuración completamente interactiva** - Sin variables hardcodeadas
+- 🌐 **Soporte multi-hostname** - Configura múltiples servicios en un solo túnel  
+- 🔄 **Re-despliegue seguro** - Actualiza configuraciones sin errores
+- 📊 **Feedback detallado** - Resúmenes completos y listas de DNS records
+- ⚡ **Validación integrada** - Previene configuraciones incorrectas
+- 🛠️ **Comandos de gestión completos** - Todo el ciclo de vida del túnel
 
 ## 📋 Prerrequisitos
 
@@ -42,29 +51,40 @@ make tunnel-login
 make tunnel-create
 ```
 
-**Qué hace:**
-- Crea un túnel con el nombre `"tunnel-name"` (configurable en el Makefile)
+**Proceso interactivo:**
+- Te pedirá el nombre del túnel que deseas crear
 - Genera un archivo de credenciales único: `~/.cloudflared/{TUNNEL_ID}.json`
 - Registra el túnel en tu cuenta de Cloudflare
 
-### 4. Configurar Ingress Rules (Crítico)
+### 4. Configurar Múltiples Ingress Rules (Crítico)
 
 ```bash
 make tunnel-route
 ```
 
-**Proceso interactivo:**
-1. Te pedirá el nombre de dominio (ej: `app.midominio.com`)
-2. Genera automáticamente el archivo `~/.cloudflared/config.yml`
-3. Configura el tráfico para dirigirse a `http://192.168.1.10:NODE_PORT`
+**Proceso interactivo mejorado:**
+1. Te pedirá el nombre o UUID del túnel
+2. Te pedirá el host por defecto (default: `192.168.1.10`)
+3. **Loop para múltiples hostnames:**
+   - Hostname (ej: `plex.midominio.com`)
+   - Host del servicio (usa el default si presionas Enter)
+   - Puerto del servicio (requerido)
+   - Presiona Enter sin hostname para terminar
+4. Genera automáticamente el archivo `~/.cloudflared/config.yml`
+5. Muestra resumen completo de la configuración
+6. Lista todos los registros DNS que necesitas crear
 
-**Archivo de configuración generado:**
+**Ejemplo de archivo de configuración generado:**
 ```yaml
-tunnel: {TUNNEL_ID}
-credentials-file: ~/.cloudflared/{TUNNEL_ID}.json
+tunnel: raspberrypi
+credentials-file: ~/.cloudflared/raspberrypi.json
 ingress:
-  - hostname: app.midominio.com
-    service: http://192.168.1.10:NODE_PORT
+  - hostname: plex.midominio.com
+    service: http://192.168.1.10:32400
+  - hostname: www.midominio.com
+    service: http://192.168.1.10:80
+  - hostname: api.midominio.com
+    service: http://192.168.1.10:3000
   - service: http_status:503  # Catch-all para otros dominios
 ```
 
@@ -90,56 +110,59 @@ make tunnel-dns
 make tunnel-run
 ```
 
-**Qué hace:**
+**Proceso interactivo:**
+- Te pedirá el nombre o UUID del túnel a ejecutar
 - Inicia el túnel en modo foreground
 - Establece la conexión con Cloudflare
-- Comienza a proxy el tráfico al servidor local
+- Comienza a proxy el tráfico a todos los servicios configurados
 
-## 🌐 Gestión de Subdominios
+## 🌐 Gestión de Múltiples Subdominios
 
-### Agregar Nuevos Subdominios
+### Configurar Múltiples Subdominios (Recomendado)
 
-Para agregar múltiples subdominios al mismo túnel:
+El comando `make tunnel-route` ahora soporta configuración de múltiples hostnames en una sola ejecución:
 
-1. **Edita manualmente la configuración:**
 ```bash
-nano ~/.cloudflared/config.yml
+make tunnel-route
 ```
 
-2. **Modifica la sección ingress:**
-```yaml
-tunnel: {TUNNEL_ID}
-credentials-file: ~/.cloudflared/{TUNNEL_ID}.json
-ingress:
-  - hostname: app.midominio.com
-    service: http://192.168.1.10:3000
-  - hostname: api.midominio.com
-    service: http://192.168.1.10:8080
-  - hostname: admin.midominio.com
-    service: http://192.168.1.10:9000
-  - service: http_status:503
+**Proceso:**
+1. Introduce el nombre del túnel
+2. Define el host por defecto (ej: `192.168.1.10`)
+3. Agrega tantos hostnames como necesites:
+   - `plex.midominio.com` → puerto `32400`
+   - `www.midominio.com` → puerto `80` 
+   - `api.midominio.com` → puerto `3000`
+   - Presiona Enter sin hostname para terminar
+4. El comando generará automáticamente toda la configuración
+5. Te mostrará todos los registros DNS que necesitas crear
+
+### Agregar Subdominios Adicionales
+
+Para agregar más subdominios después de la configuración inicial:
+
+1. **Vuelve a ejecutar la configuración:**
+```bash
+make tunnel-route
+```
+*Esto sobrescribirá la configuración existente, así que vuelve a agregar todos los hostnames*
+
+2. **O edita manualmente:**
+```bash
+nano ~/.cloudflared/config.yml
 ```
 
 3. **Crear registros DNS para cada subdominio:**
 ```bash
 # Para cada subdominio nuevo
 make tunnel-dns
-# Ingresa: nombre del túnel → api (para api.midominio.com)
-# Ingresa: subdominio → api
-
-# O manualmente en Cloudflare:
-# CNAME: api → {TUNNEL_ID}.cfargotunnel.com
-# CNAME: admin → {TUNNEL_ID}.cfargotunnel.com
+# Ingresa: nombre del túnel
+# Ingresa: subdominio (ej: api para api.midominio.com)
 ```
 
-4. **Reinicia el túnel:**
+4. **Re-despliega el servicio:**
 ```bash
-# Si está corriendo como servicio:
-sudo systemctl restart cloudflared
-
-# Si está corriendo en foreground:
-# Ctrl+C y luego:
-make tunnel-run
+make tunnel-service-redeploy
 ```
 
 ### Configuración Avanzada de Subdominios
@@ -199,6 +222,18 @@ sudo systemctl stop cloudflared
 sudo systemctl disable cloudflared
 ```
 
+### Re-desplegar el Servicio (Actualizar Configuración)
+
+```bash
+make tunnel-service-redeploy
+```
+
+**Qué hace:**
+- Para y desinstala el servicio existente de forma segura
+- Copia la configuración actualizada a `/etc/cloudflared/`
+- Reinstala y reinicia el servicio con la nueva configuración
+- Útil después de modificar hostnames con `make tunnel-route`
+
 ### Desinstalar el Servicio
 
 ```bash
@@ -223,19 +258,37 @@ make tunnel-list
 make help
 ```
 
+**Comandos disponibles:**
+- `tunnel-install` - Instala cloudflared
+- `tunnel-login` - Autenticación con Cloudflare  
+- `tunnel-create` - Crear nuevo túnel
+- `tunnel-route` - Configurar múltiples ingress rules
+- `tunnel-run` - Ejecutar túnel
+- `tunnel-dns` - Crear registros DNS
+- `tunnel-info` - Información del túnel
+- `tunnel-list` - Listar todos los túneles
+- `tunnel-service-install` - Instalar como servicio systemd
+- `tunnel-service-redeploy` - Re-desplegar servicio con nueva configuración  
+- `tunnel-service-uninstall` - Desinstalar servicio
+
 ## ⚙️ Configuración Personalizada
 
-El `Makefile` incluye estas variables configurables:
+**Configuración Interactiva (Recomendado):**
 
+Todos los comandos ahora solicitan los valores necesarios interactivamente:
+- **Nombres de túnel**: Se solicitan en cada comando que los requiera
+- **Hostnames**: Configuración dinámica en `make tunnel-route`
+- **Puertos de servicio**: Cada hostname puede tener su puerto específico
+- **IPs de destino**: Host por defecto configurable, sobrescribible por hostname
+
+**Valores por defecto:**
+- Host por defecto: `192.168.1.10`
+- Puerto por defecto para Plex: `32400`
+
+**Variables comentadas en Makefile (no se usan activamente):**
 ```makefile
-K8S_HOST    := 192.168.1.10      # IP del servidor destino
-TUNNEL_NAME := "tunnel-name"     # Nombre del túnel
-```
-
-Para cambiar estos valores, edita el `Makefile` o usa variables de entorno:
-
-```bash
-K8S_HOST=192.168.1.50 make tunnel-route
+# K8S_HOST    := 192.168.1.10      # Comentado - ahora interactivo
+# TUNNEL_NAME := "tunnel-name"     # Comentado - ahora interactivo
 ```
 
 ## ⚠️ Solución de Problemas Comunes
