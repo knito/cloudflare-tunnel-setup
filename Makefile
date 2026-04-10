@@ -50,9 +50,13 @@ tunnel-create: ## Create the tunnel
 tunnel-route: ## Configure ingress rules via config file (requires user input)
 	@echo "=== Cloudflare Tunnel - Configure Ingress Rules ==="; \
 	read -p "Enter the tunnel name or UUID: " TUNNEL_TO_ROUTE; \
+	[ -z "$${TUNNEL_TO_ROUTE}" ] && echo "ERROR: Tunnel name/UUID is required" && exit 1; \
 	read -p "Enter domain name (e.g., www.example.com): " DOMAIN; \
-	read -p "Enter the target host for the tunnel (e.g., 192.168.1.10): " K8S_HOST_INPUT; \
-	read -p "Enter the target port for the tunnel (e.g., 8080): " NODE_PORT_INPUT; \
+	[ -z "$${DOMAIN}" ] && echo "ERROR: Domain name is required" && exit 1; \
+	read -p "Enter the target host for the tunnel [192.168.1.10]: " K8S_HOST_INPUT; \
+	K8S_HOST_INPUT=$${K8S_HOST_INPUT:-192.168.1.10}; \
+	read -p "Enter the target port for the tunnel [32400]: " NODE_PORT_INPUT; \
+	NODE_PORT_INPUT=$${NODE_PORT_INPUT:-32400}; \
 	echo "Checking tunnel info for: $${TUNNEL_TO_ROUTE}"; \
 	TUNNEL_INFO=$$(cloudflared tunnel info "$${TUNNEL_TO_ROUTE}" 2>&1); \
 	if echo "$${TUNNEL_INFO}" | grep -q "error\|not found" || [ -z "$${TUNNEL_INFO}" ]; then \
