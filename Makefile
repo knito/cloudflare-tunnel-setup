@@ -28,14 +28,14 @@ tunnel-list: ## List all Cloudflare Tunnels
 .PHONY: tunnel-info
 tunnel-info: ## Show detailed info for a specific tunnel
 	@read -p "Enter tunnel name or UUID: " TUNNEL; \
-	cloudflared tunnel info ${TUNNEL}
+	cloudflared tunnel info $${TUNNEL}
 
 .PHONY: tunnel-dns
 tunnel-dns: ## Create DNS route for a tunnel
 	@read -p "Enter tunnel name or UUID: " TUNNEL; \
 	read -p "Enter subdomain (e.g., www): " SUBDOMAIN; \
-	echo "Creating DNS route: ${TUNNEL} -> ${SUBDOMAIN}"; \
-	cloudflared tunnel route dns ${TUNNEL} ${SUBDOMAIN}
+	echo "Creating DNS route: $${TUNNEL} -> $${SUBDOMAIN}"; \
+	cloudflared tunnel route dns $${TUNNEL} $${SUBDOMAIN}
 
 .PHONY: tunnel-login
 tunnel-login: ## Authenticate with Cloudflare
@@ -44,7 +44,7 @@ tunnel-login: ## Authenticate with Cloudflare
 .PHONY: tunnel-create
 tunnel-create: ## Create the tunnel
 	@read -p "Enter the desired tunnel name: " NEW_TUNNEL_NAME; \
-	cloudflared tunnel create ${NEW_TUNNEL_NAME}
+	cloudflared tunnel create $${NEW_TUNNEL_NAME}
 
 .PHONY: tunnel-route
 tunnel-route: ## Configure ingress rules via config file (supports multiple hostnames)
@@ -106,9 +106,9 @@ tunnel-route: ## Configure ingress rules via config file (supports multiple host
 .PHONY: tunnel-run
 tunnel-run: ## Run the tunnel (requires 'make tunnel-route' to configure ingress first)
 	@read -p "Enter the tunnel name or UUID to run: " TUNNEL_TO_RUN; \
-	echo "Starting Cloudflare Tunnel '${TUNNEL_TO_RUN}'..."
-	@echo "Note: Ensure 'make tunnel-route' has been run to configure ingress."
-	cloudflared tunnel run ${TUNNEL_TO_RUN}
+	echo "Starting Cloudflare Tunnel '$${TUNNEL_TO_RUN}'..."; \
+	echo "Note: Ensure 'make tunnel-route' has been run to configure ingress."; \
+	cloudflared tunnel run $${TUNNEL_TO_RUN}
 
 .PHONY: tunnel-service-install
 tunnel-service-install: ## Install cloudflared as systemd service (auto-start)
