@@ -47,16 +47,12 @@ tunnel-create: ## Create the tunnel
 	cloudflared tunnel create ${NEW_TUNNEL_NAME}
 
 .PHONY: tunnel-route
-tunnel-route: ## Configure ingress rules via config file (requires user input)
-	@echo "=== Cloudflare Tunnel - Configure Ingress Rules ==="; \
+tunnel-route: ## Configure ingress rules via config file (supports multiple hostnames)
+	@echo "=== Cloudflare Tunnel - Configure Multiple Ingress Rules ==="; \
 	read -p "Enter the tunnel name or UUID: " TUNNEL_TO_ROUTE; \
 	[ -z "$${TUNNEL_TO_ROUTE}" ] && echo "ERROR: Tunnel name/UUID is required" && exit 1; \
-	read -p "Enter domain name (e.g., www.example.com): " DOMAIN; \
-	[ -z "$${DOMAIN}" ] && echo "ERROR: Domain name is required" && exit 1; \
-	read -p "Enter the target host for the tunnel [192.168.1.10]: " K8S_HOST_INPUT; \
-	K8S_HOST_INPUT=$${K8S_HOST_INPUT:-192.168.1.10}; \
-	read -p "Enter the target port for the tunnel [32400]: " NODE_PORT_INPUT; \
-	NODE_PORT_INPUT=$${NODE_PORT_INPUT:-32400}; \
+	read -p "Enter the default target host [192.168.1.10]: " DEFAULT_HOST; \
+	DEFAULT_HOST=$${DEFAULT_HOST:-192.168.1.10}; \
 	echo "Checking tunnel info for: $${TUNNEL_TO_ROUTE}"; \
 	TUNNEL_INFO=$$(cloudflared tunnel info "$${TUNNEL_TO_ROUTE}" 2>&1); \
 	echo "Tunnel info output:"; \
@@ -72,21 +68,39 @@ tunnel-route: ## Configure ingress rules via config file (requires user input)
 		TUNNEL_ID="$${TUNNEL_TO_ROUTE}"; \
 	fi; \
 	mkdir -p ~/.cloudflared && \
-	{ \
-		echo "tunnel: $${TUNNEL_ID}"; \
-		echo "credentials-file: ~/.cloudflared/$${TUNNEL_ID}.json"; \
-		echo "ingress:"; \
-		echo "  - hostname: $${DOMAIN}"; \
-		echo "    service: http://$${K8S_HOST_INPUT}:$${NODE_PORT_INPUT}"; \
-		echo "  - service: http_status:503"; \
-	} > ~/.cloudflared/config.yml && \
+	echo "tunnel: $${TUNNEL_ID}" > ~/.cloudflared/config.yml && \
+	echo "credentials-file: ~/.cloudflared/$${TUNNEL_ID}.json" >> ~/.cloudflared/config.yml && \
+	echo "ingress:" >> ~/.cloudflared/config.yml && \
+	echo "" && \
+	echo "Now add your hostnames and services. Press Enter without input to finish." && \
+	DOMAIN_COUNT=0; \
+	DNS_RECORDS=""; \
+	while true; do \
+		echo ""; \
+		read -p "Enter hostname (e.g., plex.example.com) or press Enter to finish: " HOSTNAME; \
+		[ -z "$${HOSTNAME}" ] && break; \
+		read -p "Enter service host [$${DEFAULT_HOST}]: " SERVICE_HOST; \
+		SERVICE_HOST=$${SERVICE_HOST:-$${DEFAULT_HOST}}; \
+		read -p "Enter service port: " SERVICE_PORT; \
+		[ -z "$${SERVICE_PORT}" ] && echo "ERROR: Port is required" && continue; \
+		echo "  - hostname: $${HOSTNAME}" >> ~/.cloudflared/config.yml; \
+		echo "    service: http://$${SERVICE_HOST}:$${SERVICE_PORT}" >> ~/.cloudflared/config.yml; \
+		DOMAIN_COUNT=$$((DOMAIN_COUNT + 1)); \
+		DNS_RECORDS="$${DNS_RECORDS}   - $${HOSTNAME} -> $${TUNNEL_ID}.cfargotunnel.com\n"; \
+		echo "✓ Added: $${HOSTNAME} -> http://$${SERVICE_HOST}:$${SERVICE_PORT}"; \
+	done; \
+	echo "  - service: http_status:503" >> ~/.cloudflared/config.yml && \
+	echo "" && \
 	echo "✓ Ingress rules configured in ~/.cloudflared/config.yml" && \
+	echo "✓ Total hostnames configured: $${DOMAIN_COUNT}" && \
+	echo "" && \
+	echo "Configuration summary:" && \
+	cat ~/.cloudflared/config.yml && \
 	echo "" && \
 	echo "Next steps:" && \
 	echo "1. Run 'make tunnel-run' to start the tunnel" && \
-	echo "2. Create a CNAME record in Cloudflare DNS:" && \
-	echo "   Name: $${DOMAIN}" && \
-	echo "   Target: $${TUNNEL_ID}.cfargotunnel.com" && \
+	echo "2. Create CNAME records in Cloudflare DNS:" && \
+	printf "$${DNS_RECORDS}" && \
 	echo ""
 
 .PHONY: tunnel-run
