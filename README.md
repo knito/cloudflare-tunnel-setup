@@ -90,14 +90,20 @@ ingress:
 
 ### 5. Configurar DNS en Cloudflare
 
-Después de ejecutar `make tunnel-route`, necesitas crear un registro CNAME:
+Después de ejecutar `make tunnel-route`, necesitas crear un registro CNAME para cada dominio/subdominio que hayas configurado.
 
-**Opción A: Manual en el Dashboard de Cloudflare**
-- Tipo: `CNAME`
-- Nombre: `app` (para `app.midominio.com`)
-- Destino: `{TUNNEL_ID}.cfargotunnel.com`
+**Opción A: Manual en el Dashboard de Cloudflare (Recomendado para múltiples dominios)**
+Esta es la forma más confiable si estás configurando hostnames que pertenecen a dominios distintos (ej: `.com` y `.cl`).
+1. Entra a la zona del dominio correspondiente en Cloudflare
+2. Ve a **DNS** -> **Records**
+3. Añade un nuevo registro:
+   - Tipo: `CNAME`
+   - Nombre: `app` (para `app.midominio.com`)
+   - Destino: `{TUNNEL_ID}.cfargotunnel.com`
+   - Proxy status: Proxied (Nube naranja)
 
-**Opción B: Via comando**
+**Opción B: Via comando (Solo para el dominio principal)**
+*⚠️ Nota: Este comando solo funciona para el dominio con el que te autenticaste en el paso 2.*
 ```bash
 make tunnel-dns
 ```
@@ -292,6 +298,14 @@ Todos los comandos ahora solicitan los valores necesarios interactivamente:
 ```
 
 ## ⚠️ Solución de Problemas Comunes
+
+### Error al crear DNS en un dominio diferente (ej: sub.midominio.cl anidado en .com)
+- **Causa:** El comando `make tunnel-dns` usa el certificado de tu autenticación inicial (ej: `midominio.com`). Si intentas crear un subdominio para otro dominio, lo anidará bajo el dominio autorizado (ej: `sub.midominio.cl.midominio.com`).
+- **Solución:** Configura múltiples dominios en tu `config.yml` y luego crea los registros CNAME **manualmente** en el dashboard de Cloudflare para los dominios adicionales. El túnel SÍ funcionará para todos ellos.
+
+### Error: "You have an existing certificate... which login would overwrite"
+- **Causa:** Estás intentando correr `make tunnel-login` pero ya tienes un certificado para otro dominio.
+- **Solución:** No necesitas volver a loguearte. Un solo túnel puede enrutar tráfico para múltiples dominios diferentes si creas los CNAME manualmente en Cloudflare apuntando al mismo UUID de túnel.
 
 ### Error: "tunnel not found"
 - **Causa:** No has ejecutado `make tunnel-create`
