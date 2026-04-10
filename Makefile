@@ -119,6 +119,26 @@ tunnel-service-uninstall: ## Uninstall cloudflared systemd service
 	sudo cloudflared service uninstall
 	@echo "Cloudflared service removed"
 
+.PHONY: tunnel-service-redeploy
+tunnel-service-redeploy: ## Re-deploy cloudflared service (uninstall + install with updated config)
+	@echo "Re-deploying cloudflared service..."
+	@echo "Step 1: Stopping and uninstalling existing service..."
+	-sudo systemctl stop cloudflared 2>/dev/null || true
+	-sudo systemctl disable cloudflared 2>/dev/null || true
+	-sudo cloudflared service uninstall 2>/dev/null || true
+	@echo "Step 2: Installing service with updated configuration..."
+	sudo mkdir -p /etc/cloudflared
+	sudo cp ~/.cloudflared/cert.pem /etc/cloudflared/cert.pem
+	sudo cp ~/.cloudflared/*.json /etc/cloudflared/
+	sudo cp ~/.cloudflared/config.yml /etc/cloudflared/config.yml
+	sudo sed -i 's|~/.cloudflared|/etc/cloudflared|g' /etc/cloudflared/config.yml
+	sudo cloudflared service install
+	sudo systemctl enable cloudflared
+	sudo systemctl start cloudflared
+	@echo "✓ Cloudflared service re-deployed successfully"
+	@echo "Check status: sudo systemctl status cloudflared"
+	@echo "View logs: sudo journalctl -u cloudflared -f"
+
 # ------------------------------------------------------------
 # Help
 # ------------------------------------------------------------
